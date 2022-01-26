@@ -1,0 +1,92 @@
+trigger: none
+
+pool: aaf-aci-linux-build-pool-ci
+
+variables:
+- template: variables.yml
+
+stages:
+- stage: CREATE_RUNBOOKS
+  jobs:  
+
+  # This job is to create the runbooks.
+  - job: create_automationaccount
+    displayName: Create Automation Account
+    steps:
+        
+    - task: AzurePowerShell@5
+      inputs:
+        azureSubscription: '<Your service connection>'
+        ScriptType: 'FilePath'
+        ScriptPath: 'templates/createAutomationAccount.ps1'
+        ScriptArguments: '-AutomationAccountName ${{ variables.AutomationAccountName }} -ResourceGroupName ${{ variables.ResourceGroupName }}'
+        azurePowerShellVersion: 'LatestVersion'
+      displayName: Automation account
+  
+
+  - job: create_approleassignment
+    dependsOn: create_automationaccount
+    displayName: Create App role assignment
+    steps:
+
+    - task: AzurePowerShell@5
+      inputs:
+        azureSubscription: '<Your service connection>'
+        ScriptType: 'FilePath'
+        ScriptPath: 'templates/createRoleAssignment.ps1'
+        ScriptArguments: '-AutomationAccountName ${{ variables.AutomationAccountName }} -ResourceGroupName ${{ variables.ResourceGroupName }} -RoleDefinition "${{ variables.RoleDefinition }}" -Scope ${{ variables.Scope }} '
+        azurePowerShellVersion: 'LatestVersion'
+      displayName: App role assignment for Automation account to enable managed identity
+
+  - job: create_schedule
+    dependsOn: 
+      - create_automationaccount
+    displayName: Create Schedule for Runbooks 
+    steps:
+    - task: AzurePowerShell@5
+      inputs:
+        azureSubscription: '<Your service connection>'
+        ScriptType: 'FilePath'
+        ScriptPath: 'templates/createSchedule.ps1'
+        ScriptArguments: '-AutomationAccountName ${{ variables.AutomationAccountName }} -ResourceGroupName ${{ variables.ResourceGroupName }} -ScheduleName "${{ variables.ScheduleName }}" -Time "${{ variables.Time }}"'
+        azurePowerShellVersion: 'LatestVersion'
+      displayName: Create Schedule for Runbooks
+  
+
+  
+  - job: create_import_runbooks
+    dependsOn: 
+      - create_automationaccount      
+    displayName: Create and Import Runbooks
+    steps:
+    - task: AzurePowerShell@5
+      inputs:
+        azureSubscription: '<Your service connection>'
+        ScriptType: 'FilePath'
+        ScriptPath: 'templates/createAndImportRunbooks.ps1'
+        ScriptArguments: '-AutomationAccountName ${{ variables.AutomationAccountName }} -ResourceGroupName ${{ variables.ResourceGroupName }} -RunbooksPath "${{ variables.RunbooksPath }}"'
+        azurePowerShellVersion: 'LatestVersion'
+      displayName: Create and Import Runbooks
+  
+  - job: register_runbook_to_schedule
+    dependsOn: 
+      - create_automationaccount
+      - create_import_runbooks
+      - create_SODschedule
+    displayName: Register Runbook to a schedule
+    steps:
+    - bash: |
+        ls $(System.DefaultWorkingDirectory)/templates
+    - task: AzurePowerShell@5
+      inputs:
+        azureSubscription: '<Your service connection>'
+        ScriptType: 'FilePath'
+        ScriptPath: 'templates/registerRunbooksToASchedule.ps1'
+        ScriptArguments: '-AutomationAccountName ${{ variables.AutomationAccountName }} -ResourceGroupName ${{ variables.ResourceGroupName }} -RunbooksName "${{ variables.RunbooksName }}" -ScheduleName "${{ variables.ScheduleName }}"'
+        azurePowerShellVersion: 'LatestVersion'
+      displayName: Register Runbook to a schedule
+  
+
+
+  
+  

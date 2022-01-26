@@ -1,0 +1,12 @@
+variables:
+  ResourceGroupName: <your resource group name>
+  AutomationAccountName: <your automation account>
+  RoleDefinition: "<your role definition>"
+  Scope: <your scope>
+  ScheduleName: "<your schedule name>" 
+  Time: "<time>" #18:00:00
+  RunbooksName: <your runbook names usually will be same name as filename under runbooks\rgs>" # e.g. GetAllResourcegroups,GetAResourcegroup"
+  RunbooksPath: <runbook path> # ./runbooks/rgs
+
+
+
